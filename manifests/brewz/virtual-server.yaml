@@ -46,3 +46,8 @@ spec:
         proxy:
           upstream: recommendations
           rewritePath: /api/recommendations
+    - path: /images
+      action:
+        proxy:
+          upstream: api
+          rewritePath: /images
