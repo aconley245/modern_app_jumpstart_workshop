@@ -13,13 +13,13 @@ You can also reference the official [NGINX Ingress Controller documentation](htt
     **Note:** You may need to update the branch version to match the latest release of NGINX Ingress Controller
 
     ```bash
-    git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v2.3.0
+    git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v3.0.2
     cd kubernetes-ingress
     ```
 
 ## Build the Container
 
-For this step, we will leverage the [Docker CLI](https://docs.docker.com/engine/install/) to build the NGINX Ingress Controller image. Alternatively, you can use [Podman](https://podman.io/) if you do not have a Docker license.
+For this step, we will leverage the [Docker CLI](https://docs.docker.com/engine/install/) to build the NGINX Ingress Controller image.
 
 The repository's Makefile supports several [target types](https://docs.nginx.com/nginx-ingress-controller/installation/building-ingress-controller-image/#makefile-targets), but for this lab we will leverage the *debian-image-nap-dos-plus* target so we can use NGINX App Protect WAF.
 
@@ -32,11 +32,14 @@ The repository's Makefile supports several [target types](https://docs.nginx.com
     nginx-repo.crt  nginx-repo.key
     ```
 
+    >Note: The certificate's file extension *must* be `.crt`. If the file extension is downloaded as anything else (such as `.cer`), you must rename the file yourself before proceeding.
+
 1. To build the NGINX Ingress Controller container, follow these steps:
 
     ```bash
-    # Replace OWNER with your Github username
-    export GITHUB_USER=OWNER
+    # Replace your_github_username with your Github username
+    export GITHUB_USER=your_github_username
+
     make debian-image-nap-dos-plus PREFIX=ghcr.io/$GITHUB_USER/nginx-plus-ingress TARGET=container DOCKER_BUILD_OPTIONS="--platform linux/amd64"
     ```
 

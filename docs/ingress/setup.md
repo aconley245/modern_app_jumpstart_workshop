@@ -25,7 +25,7 @@ For this lab we will leverage the Rancher K3s Kubernetes distribution.  Since we
 1. Run the following command on the K3s server:
 
     ```bash
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--no-deploy traefik --egress-selector-mode=disabled --bind-address 10.1.1.5 --kube-apiserver-arg=feature-gates=LegacyServiceAccountTokenNoAutoGeneration=false" sh -s -
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --egress-selector-mode=disabled --bind-address 10.1.1.5 --kube-apiserver-arg=feature-gates=LegacyServiceAccountTokenNoAutoGeneration=false" INSTALL_K3S_VERSION=v1.25.12+k3s1 sh -s -
     ```
 
     > **Note:** The default behavior starting with Kubernetes version 1.24 is **not** to auto generate secret tokens when creating service accounts. The above installation includes the option to disable this change in behavior. More information about this change can be found [here](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#urgent-upgrade-notes:~:text=The%20LegacyServiceAccountTokenNoAutoGeneration%20feature%20gate%20is%20beta%2C%20and%20enabled%20by%20default.%20When,controller%20to%20populate%20with%20a%20service%20account%20token%20by%20following%20this).
@@ -88,25 +88,34 @@ Now that we have K3s up and running and a dedicated service account for UDF we n
     cat $NEWCFG
     ```
 
-1. Copy the output from the kubeconfig file and save it to your laptop.
+1. Copy the output from the kubeconfig file and save it to a file on your laptop, for example in `<your downloads folder>/config-udf.yaml`.
 
-1. Set the `KUBECONFIG` environment variable to your new kubeconfig file:
+1. Set the `KUBECONFIG` environment variable to reference this new kubeconfig file such as in the example commands below:
 
     ```bash
-    # Export kubeconfig location
     export KUBECONFIG=~/Downloads/config-udf.yaml
+    ```
 
-    # Test kubeconfig, you should see the k3s node
+1. Use kubectl to test your new configuration:
+
+    ```bash
     kubectl get nodes
+    ```
+
+    You should see the k3s node:
+
+    ```shell
+    NAME   STATUS   ROLES                  AGE   VERSION
+    k3s    Ready    control-plane,master   6m    v1.25.12+k3s1
     ```
 
 # Fork Infrastructure Repository
 
-When practicing GitOps with Argo CD, it is a [good practice](https://argo-cd.readthedocs.io/en/stable/user-guide/best_practices/) to separate your application code from your infrastructure configuration into separate repositories. This will ensure that changes to either may occur in isolation without triggering a large-scale deployment.
+When practicing GitOps with ArgoCD, it is a [good practice](https://argo-cd.readthedocs.io/en/stable/user-guide/best_practices/) to separate your application code from your infrastructure configuration into separate repositories. This will ensure that changes to either may occur in isolation without triggering a large-scale deployment.
 
 1. Fork this secondary repository to your own GitHub account as you did earlier.
 
-    You can complete this task through the GitHub UI:
+    You can complete this task through the [repository GitHub UI](https://github.com/f5devcentral/modern_app_jumpstart_workshop_infra):
     ![GitHub Fork](../assets/gh_fork_infra.png)
 
     or via the GitHub CLI:
@@ -135,6 +144,6 @@ Now that you have forked the workshop infrastructure repository, you'll want to 
 
     > **Note:** For the remainder of this lab, we will refer to this repository as **"infra"**.
 
-# Next Steps
+## Next Steps
 
-Next, we will [install Argo CD](argocd.md)
+Next, we will [install ArgoCD](argocd.md)

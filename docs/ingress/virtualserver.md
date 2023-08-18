@@ -1,6 +1,6 @@
 # VirtualServer and VirtualServerRoute Resources
 
-VirtualServer and VirtualServerRoute resources were added into NGINX Ingress Controller started in version 1.5 and are implemented via [Custom Resources (CRDs)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/).
+VirtualServer and VirtualServerRoute resources were added into NGINX Ingress Controller starting in version 1.5 and are implemented via [Custom Resources (CRDs)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/).
 
 The resources enable use cases not supported with the Ingress resource, such as traffic splitting and advanced content-based routing.
 
@@ -25,7 +25,7 @@ In the Brewz `virtual-server.yaml` manifest, the *spa* and *api* services levera
   upstreams:
     - name: spa
       service: spa
-      port: 80
+      port: 8080
     - name: api
       service: api
       port: 8000
@@ -75,7 +75,7 @@ In the Brewz `virtual-server.yaml` manifest, we define a very simple upstream co
   upstreams:
     - name: spa
       service: spa
-      port: 80
+      port: 8080
     - name: api
       service: api
       port: 8000
@@ -89,7 +89,7 @@ While this configuration meets our requirements for a lab, in a production envir
   upstreams:
     - name: spa
       service: spa
-      port: 80
+      port: 8080
     - name: api
       service: api
       port: 8000
@@ -116,7 +116,7 @@ One of the advantages the NGINX Plus Ingress Controller provides is the ability 
       upstreams:
         - name: spa
           service: spa
-          port: 80
+          port: 8080
         - name: api
           service: api
           port: 8000
@@ -134,7 +134,7 @@ One of the advantages the NGINX Plus Ingress Controller provides is the ability 
           port: 8001
         - name: spa-dark
           service: spa-dark
-          port: 80
+          port: 8080
       routes:
         - path: /
           matches:
@@ -167,31 +167,32 @@ One of the advantages the NGINX Plus Ingress Controller provides is the ability 
               rewritePath: /images
     ```
 
-1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. Argo CD will pick up the most recent changes, and deploy them for you.
+1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. ArgoCD will pick up the most recent changes, and deploy them for you.
 
-1. Run the following command on the K3s server via the UDF *SSH* or *Web Shell* Access Methods to test that our API services is still up and has a health check:
+    > **Note:** ArgoCD does not *immediately* detect changes. By default, it checks the repository for changes every 3 minutes. You can click the **Refresh** button on the **brewz** application in ArgoCD to immediately check for updated repository contents. If any are detected, ArgoCD will initiate a sync.
+
+1. Run the following command on your laptop to test that our API services is still up and has a health check:
 
     ```bash
-    # Find the Brewz Access Method's Host
-    HOST=`curl -s metadata.udf/deployment | jq '.deployment.components[] | select(.name == "k3s") | .accessMethods.https[] | select(.label == "Brewz") | .host' -r`
-    curl -k https://$HOST/api/products/123
+    BREWZ_URL=<Your Brewz UDF access method url>
+    curl -k https://$BREWZ_URL/api/products/123
     ```
 
 ## ErrorPage
 
-While the Brews developers were able to break their monolith application into microservices, their APIs are not always returning a JSON response.  A good example is when you lookup a product that does not exist.  The API returns a 400 HTTP response code but the body payload is *"Could not find the product!"*.
+While the Brewz developers were able to break their monolith application into microservices, their APIs are not always returning a JSON response. A good example is when you lookup a product that does not exist. The API returns a 400 HTTP response code but the body payload is *"Could not find the product!"*.
 
-1. Run the following command on the K3s server via the UDF *SSH* or *Web Shell* Access Methods to test this output:
+1. Run the following command on your laptop to test this output:
 
     ```bash
-    # Find the Brewz Access Method's Host
-    HOST=`curl -s metadata.udf/deployment | jq '.deployment.components[] | select(.name == "k3s") | .accessMethods.https[] | select(.label == "Brewz") | .host' -r`
-    curl -k https://$HOST/api/products/1234
+    curl -k https://$BREWZ_URL/api/products/1234
     ```
 
-    > Ideally, the development team will fix this issue in the API code but we can also help by performing a quick fix via our VirtualServer configuration.
+    Ideally, the development team will fix this issue in the API code but we can also help by performing a quick fix via our VirtualServer configuration.
 
-1. In VSCode, open the `manifests/brewz/virtual-server.yaml` file and add an `errorPages` resource to the `routes` -> `api` path; example below.
+    > **Note:** Since the error response override we will be adding in the next steps could apply to multiple `404` entities on the api (users, products, cart, etc), we will generically use the term "resource" when creating the error response override.
+
+1. In VSCode, open the `manifests/brewz/virtual-server.yaml` file and add an `errorPages` resource to the `routes` -> `/api` path; example below.
 
     ```yaml
     ---
@@ -204,7 +205,7 @@ While the Brews developers were able to break their monolith application into mi
       upstreams:
         - name: spa
           service: spa
-          port: 80
+          port: 8080
         - name: api
           service: api
           port: 8000
@@ -214,8 +215,23 @@ While the Brews developers were able to break their monolith application into mi
             interval: 20s
             jitter: 3s
             port: 8000
+        - name: inventory
+          service: inventory
+          port: 8002
+        - name: recommendations
+          service: recommendations
+          port: 8001
+        - name: spa-dark
+          service: spa-dark
+          port: 8080
       routes:
         - path: /
+          matches:
+            - conditions:
+              - cookie: "app_version"
+                value: "dark"
+              action:
+                pass: spa-dark
           action:
             pass: spa
         - path: /api
@@ -229,10 +245,20 @@ While the Brews developers were able to break their monolith application into mi
                 code: 404
                 type: application/json
                 body: |
-                  {\"msg\": \"Could not find the product!\"}
+                  {\"msg\": \"Could not find the resource!\"}
                 headers:
                   - name: x-debug-original-status
                     value: ${upstream_status}
+        - path: /api/inventory
+          action:
+            proxy:
+              upstream: inventory
+              rewritePath: /api/inventory
+        - path: /api/recommendations
+          action:
+            proxy:
+              upstream: recommendations
+              rewritePath: /api/recommendations
         - path: /images
           action:
             proxy:
@@ -240,17 +266,15 @@ While the Brews developers were able to break their monolith application into mi
               rewritePath: /images
     ```
 
-1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. Argo CD will pick up the most recent changes, and deploy them for you.
+1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. ArgoCD will pick up the most recent changes, and deploy them for you.
 
-1. Now, check that an unknown product returns a JSON object by running the following command on the K3s server:
+1. Now, check that an unknown product returns a JSON object by running the following command on your laptop:
 
     ```bash
-    # Find the Brewz Access Method's Host
-    HOST=`curl -s metadata.udf/deployment | jq '.deployment.components[] | select(.name == "k3s") | .accessMethods.https[] | select(.label == "Brewz") | .host' -r`
-    curl -k https://$HOST/api/products/1234
+    curl -k https://$BREWZ_URL/api/products/1234
     ```
 
-    > Your output should look like: `{"msg": "Could not find the product!"}`
+    > Your output should look like: `{"msg": "Could not find the resource!"}`
 
 ## TLS
 
@@ -277,7 +301,7 @@ Since you are running this lab in a closed ecosystem (UDF), you do not have the 
     - Organization Name: F5
     - Organizational Unit Name: Brewz
     - Common Name: brewz.f5demo.com
-    - Email Address: brewsz@f5demo.com
+    - Email Address: brewz@f5demo.com
 
 ### Create K8s Secret for the Cert and Key
 
@@ -318,8 +342,8 @@ The final step is to update our Brewz VirtualServer resource to leverage the new
 1. In VSCode, open the `manifests/brewz/virtual-server.yaml` file and add the following fields to the virtual server:
 
     ```yaml
-    tls:
-      secret: brewz-tls
+      tls:
+        secret: brewz-tls
     ```
 
     The final file should look like the example below:
@@ -337,7 +361,7 @@ The final step is to update our Brewz VirtualServer resource to leverage the new
       upstreams:
         - name: spa
           service: spa
-          port: 80
+          port: 8080
         - name: api
           service: api
           port: 8000
@@ -355,7 +379,7 @@ The final step is to update our Brewz VirtualServer resource to leverage the new
           port: 8001
         - name: spa-dark
           service: spa-dark
-          port: 80
+          port: 8080
       routes:
         - path: /
           matches:
@@ -377,7 +401,7 @@ The final step is to update our Brewz VirtualServer resource to leverage the new
                 code: 404
                 type: application/json
                 body: |
-                  {\"msg\": \"Could not find the product!\"}
+                  {\"msg\": \"Could not find the resource!\"}
                 headers:
                   - name: x-debug-original-status
                     value: ${upstream_status}
@@ -396,10 +420,9 @@ The final step is to update our Brewz VirtualServer resource to leverage the new
             proxy:
               upstream: api
               rewritePath: /images
-
     ```
 
-1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. Argo CD will pick up the most recent changes, and deploy them for you.
+1. Commit the `manifests/brewz/virtual-server.yaml` file to your local repository, then push it to your remote repository. ArgoCD will pick up the most recent changes, and deploy them for you.
 
 ### Check the status of our virtual server
 

@@ -1,6 +1,8 @@
-# F5 Distributed Cloud Kubernetes Site
+# Lab 3: F5 Distributed Cloud Kubernetes Site
 
 In this lab, you will evaluate alternative options for publishing services from a K8s cluster leveraging F5 Distributed Cloud.
+
+> **Important:** You must have completed both [Lab 1](../scenario/README.md) and [Lab 2](../ingress/README.md) before you can start this lab.
 
 ## Resources
 

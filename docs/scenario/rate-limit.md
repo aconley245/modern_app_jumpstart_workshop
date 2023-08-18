@@ -43,7 +43,7 @@ Currently, there is no limitation on the rate that clients may query the product
       upstreams:
         - name: spa
           service: spa
-          port: 80
+          port: 8080
         - name: api
           service: api
           port: 8000
@@ -79,11 +79,13 @@ Currently, there is no limitation on the rate that clients may query the product
 
     Keep this technique in mind for the remainder of this workshop if you are uncertain that your YAML manifests have been formatted correctly.
 
-1. Stage the changes, and commit them to your local repository.
+1. Stage the changes to both files, and commit them to your local repository.
 
 1. Push the changes to your remote repository.
 
-1. Return to the Argo CD UI, and click refresh after 30 seconds or so has elapsed. Note that an automatic synchronization has occurred, and you will now see that the `rate-limit-policy` object has been added to the object graph. You may optionally click on it to view the configuration details associated with it (including its deployment status).
+1. Return to the ArgoCD UI, and click refresh after 30 seconds or so has elapsed. Note that an automatic synchronization has occurred, and you will now see that the `rate-limit-policy` object has been added to the object graph. You may optionally click on it to view the configuration details associated with it (including its deployment status).
+
+    > **Note:** ArgoCD does not *immediately* detect changes. By default, it checks the repository for changes every 3 minutes. You can click the **Refresh** button on the **brewz** application in ArgoCD to immediately check for updated repository contents. If any are detected, ArgoCD will initiate a sync.
 
 1. Test the new rate limiting settings with **Hey**:
 
@@ -91,7 +93,7 @@ Currently, there is no limitation on the rate that clients may query the product
     hey -n 20 -c 10 $BREWZ_URL/api/products
     ```
 
-    > Note that **Hey** should report `Status code distribution: [200] 12 responses, [503] 8 responses`. Why? When the number of requests per second per unique client IP configured in the rate limit policy had been exceeded, NGINX Ingress Controller started to respond with a `503 Service Unavailable` HTTP response, which signified an error response to Hey.
+    > Note that **Hey** should report a result similar to `Status code distribution: [200] 12 responses, [503] 8 responses` (the distribution in your results may vary slightly). Why? When the number of requests per second per unique client IP configured in the rate limit policy had been exceeded, NGINX Ingress Controller started to respond with a `503 Service Unavailable` HTTP response, which signified an error response to Hey.
 
 ## Next Steps
 

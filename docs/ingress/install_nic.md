@@ -2,7 +2,7 @@
 
 For this step, we will pull the NGINX Plus Ingress Controller image from your private registry and deploy it into your K3s deployment.
 
-We will use Argo CD to deploy NGINX Ingress Controller for us. However, if you wanted to do this using the Helm CLI, you may use [this procedure](install_nic_helm.md) as a reference.
+We will use ArgoCD to deploy NGINX Ingress Controller for us. However, if you wanted to do this using the Helm CLI, you may use [this procedure](install_nic_helm.md) as a reference.
 
 Alternatively, if you wish to install the NGINX Ingress Controller from the NGINX private container registry, you can follow [this procedure](install_nic_nginx_registry.md) and skip the remainder of this document.
 
@@ -29,13 +29,14 @@ While you could leverage the PAT created in the build steps, the best practice i
     # Create nginx-ingress namespace
     kubectl create namespace nginx-ingress
 
+    # Replace your_github_username with your Github username
     export GITHUB_USER=your_github_username
 
     # create container registry secret
     kubectl create secret docker-registry ghcr -n nginx-ingress --docker-server=ghcr.io --docker-username=${GITHUB_USER} --docker-password=${GITHUB_TOKEN}
     ```
 
-## Update Helm Values and Argo CD Application Manifest
+## Update Helm Values and ArgoCD Application Manifest
 
 Before you can deploy the NGINX Ingress Controller, you will need to modify the Helm chart values to match your environment.
 
@@ -52,10 +53,10 @@ Before you can deploy the NGINX Ingress Controller, you will need to modify the 
 
 1. Find the following variables and replace them with your information:
 
-    | Variable        | Value           |
-    |-----------------|-----------------|
-    | \<GITHUB_USER\>   | github username |
-    | &lt;TAG>        | tag value from previous command|
+    | Variable        | Value                           |
+    |-----------------|---------------------------------|
+    | \<GITHUB_USER\> | your github username            |
+    | &lt;TAG>        | tag value from previous command |
 
     Your file should look similar to the example below:
 
@@ -68,26 +69,42 @@ Before you can deploy the NGINX Ingress Controller, you will need to modify the 
       enableSnippets: true
       image:
         repository: ghcr.io/codygreen/nginx-plus-ingress
-        tag: 2.3.0-SNAPSHOT-a88b7fe
-      nginxPlus: true
+        tag: 3.0.2-SNAPSHOT-a88b7fe
+      nginxplus: true
       nginxStatus:
-        allowCidrs: 9000
+        allowCidrs: 0.0.0.0/0
         port: 9000
+      readyStatus:
+        initialDelaySeconds: 30
       serviceAccount:
         imagePullSecretName: ghcr
+      service:
+        customPorts:
+          - port: 9114
+            targetPort: service-insight
+            nodePort: 31000
+            protocol: TCP
+            name: service-insight
+          - port: 9000
+            targetPort: 9000
+            nodePort: 32000
+            protocol: TCP
+            name: nginx-status
     prometheus:
+      create: true
+    serviceInsight:
       create: true
     ```
 
-1. Save the file. Next, you will need to update the NGINX Plus Ingress Argo CD manifest to match your environment.  
+1. Save the file. Next, you will need to update the NGINX Plus Ingress ArgoCD manifest to match your environment.  
 
 1. Open the `manifests/nginx-ingress-subchart.yaml` file in your forked version of the **infra** repository.
 
 1. Find the following variables and replace them with your information:
 
-    | Variable        | Value           |
-    |-----------------|-----------------|
-    | \<GITHUB_USER\> | github username |
+    | Variable        | Value                |
+    |-----------------|----------------------|
+    | \<GITHUB_USER\> | your github username |
 
     Your file should look similar to the example below:
 
@@ -103,7 +120,7 @@ Before you can deploy the NGINX Ingress Controller, you will need to modify the 
       project: default
       source:
         path: charts/nginx-plus-ingress
-        repoURL: https://github.com/codygreen/modern_app_jumpstart_workshop.git
+        repoURL: https://github.com/codygreen/modern_app_jumpstart_workshop_infra.git
         targetRevision: HEAD
       destination:
         namespace: nginx-ingress
@@ -123,9 +140,9 @@ Before you can deploy the NGINX Ingress Controller, you will need to modify the 
 
 1. Push the changes to your remote **infra** repository.
 
-## Install NGINX Plus Ingress Argo CD Application
+## Install NGINX Plus Ingress ArgoCD Application
 
-1. Now that we have the base requirements ready, we can add the NGINX Plus Ingress application to Argo CD with the following command:
+1. Now that we have the base requirements ready, we can add the NGINX Plus Ingress application to ArgoCD with the following command:
 
     ```bash
     kubectl apply -f manifests/nginx-ingress-subchart.yaml
@@ -193,7 +210,7 @@ Now that NGINX Plus Ingress Controller has been installed, we need to check that
     Containers:
       nginx-plus-ingress-nginx-ingress:
         Container ID:  containerd://69e9e416438c2cc2330df627cc7605640f6c196092a4ea3f7ff421c3bcfbbcd7
-        Image:         ghcr.io/codygreen/nginx-plus-ingress:2.3.0-SNAPSHOT-a88b7fe
+        Image:         ghcr.io/codygreen/nginx-plus-ingress:3.0.2-SNAPSHOT-a88b7fe
         Image ID:      ghcr.io/codygreen/nginx-plus-ingress@sha256:6b480db30059249d90d4f2d9d8bc2012af8c76e9b25799537f4b7e5a4a2946ca
         Ports:         80/TCP, 443/TCP, 9113/TCP, 8081/TCP
         Host Ports:    0/TCP, 0/TCP, 0/TCP, 0/TCP
@@ -223,6 +240,7 @@ Now that NGINX Plus Ingress Controller has been installed, we need to check that
           -enable-prometheus-metrics=true
           -prometheus-metrics-listen-port=9113
           -prometheus-tls-secret=
+          -enable-service-insight=true
           -enable-custom-resources=true
           -enable-snippets=true
           -enable-tls-passthrough=false
@@ -233,10 +251,10 @@ Now that NGINX Plus Ingress Controller has been installed, we need to check that
           -ready-status-port=8081
           -enable-latency-metrics=false
         State:          Running
-          Started:      Wed, 06 Jul 2022 09:07:24 -0700
+          Started:      Mon, 20 Mar 2023 13:18:56 -0700
         Ready:          True
         Restart Count:  0
-        Readiness:      http-get http://:readiness-port/nginx-ready delay=0s timeout=1s period=1s #success=1 #failure=3
+        Readiness:      http-get http://:readiness-port/nginx-ready delay=30s timeout=1s period=1s #success=1 #failure=3
         Environment:
           POD_NAMESPACE:  nginx-ingress (v1:metadata.namespace)
           POD_NAME:       nginx-plus-ingress-nginx-ingress-785b67bf4-vgtdl (v1:metadata.name)
@@ -271,24 +289,11 @@ Now that NGINX Plus Ingress Controller has been installed, we need to check that
 
 ## NGINX Dashboard
 
-The NGINX Plus Ingress Controller includes the NGINX dashboard that reports key load-balancing and performance metrics.
+The NGINX Plus Ingress Controller includes the NGINX dashboard that reports key load-balancing and performance metrics. When you deployed Ingress Controller, `customPorts` were specified in the values file. These were added so the dashboard could be exposed as a service and available to use external to the cluster.
 
-1. To access the dashboard, SSH into the K3s server via the *SSH* or *Web Shell* access methods.
-
-    ```bash
-    sudo su -
-    # get the ingress pod name
-    NIC_POD=`kubectl get pods -n nginx-ingress -o json | jq '.items[0].metadata.name' -r`
-
-    # start a kubectl port-forward
-    kubectl port-forward $NIC_POD 9000:9000 --address='0.0.0.0' --namespace=nginx-ingress
-    ```
-
-1. Now, open the **NGINX Dashboard** UDF Access Method on the k3s component. You should see the NGINX default welcome page.
+1. To access the dashboard, open the **NGINX Dashboard** UDF Access Method on the k3s component. You should see the NGINX default welcome page.
 
 1. Append `/dashboard.html` to the URL in your browser to see the NIGNX Plus dashboard.
-
-    > **Note:** You will need to leave this port-forward command running to continue accessing the NGINX dashboard.
 
 1. Explore the features of the dashboard.
 

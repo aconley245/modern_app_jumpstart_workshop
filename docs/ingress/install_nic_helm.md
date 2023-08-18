@@ -49,7 +49,18 @@ While you could leverage the PAT created in the build steps, the best practice i
       --set controller.appprotectdos.enable=true \
       --set controller.nginxStatus.port=9000 \
       --set controller.nginxStatus.allowCidrs=0.0.0.0/0 \
-      --set prometheus.create=true
+      --set controller.service.customPorts[0].port=9114 \
+      --set controller.service.customPorts[0].targetPort=service-insight \
+      --set controller.service.customPorts[0].nodePort=31000 \
+      --set controller.service.customPorts[0].protocol=TCP \
+      --set controller.service.customPorts[0].name=service-insight \
+      --set controller.service.customPorts[1].port=9000 \
+      --set controller.service.customPorts[1].targetPort=9000 \
+      --set controller.service.customPorts[1].nodePort=32000 \
+      --set controller.service.customPorts[1].protocol=TCP \
+      --set controller.service.customPorts[1].name=nginx-status \
+      --set prometheus.create=true \
+      --set serviceInsight.create=true
     ```
 
     > **Note:** If you had previously created and tagged an `nginx-plus-ingress` container image on your system, the command to set the `TAG` variable in the block above will not work. Instead, run `docker images ghcr.io/$GITHUB_USER/nginx-plus-ingress --format "{{.Tag}}"` and select your most recent tag from the output, then set the variable manually: `TAG=<your tag from the previous command>`.

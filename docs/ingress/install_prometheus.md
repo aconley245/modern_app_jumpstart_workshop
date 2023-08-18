@@ -1,18 +1,18 @@
-# Install Prometheus via Argo CD
+# Install Prometheus via ArgoCD
 
-In this step, you will use GitOps to install Prometheus leveraging Argo CD.
+In this step, you will use GitOps to install Prometheus leveraging ArgoCD.
 
-## Update Argo CD Application Manifest
+## Update ArgoCD Application Manifest
 
-You will need to update the Prometheus Argo CD manifest to match your environment.
+You will need to update the Prometheus ArgoCD manifest to match your environment.
 
 1. Open the `manifests/prometheus-subchart.yaml` file in your forked version of the **infra** repository.
 
 1. Find the following variables and replace them with your information:
 
-    | Variable        | Value           |
-    |-----------------|-----------------|
-    | \<GITHUB_USER\>   | github username |
+    | Variable        | Value                |
+    |-----------------|----------------------|
+    | \<GITHUB_USER\> | your github username |
 
     Your file should look similar to the example below:
 
@@ -28,7 +28,7 @@ You will need to update the Prometheus Argo CD manifest to match your environmen
       project: default
       source:
         path: charts/prometheus
-        repoURL: https://github.com/codygreen/modern_app_jumpstart_workshop.git
+        repoURL: https://github.com/codygreen/modern_app_jumpstart_workshop_infra.git
         targetRevision: HEAD
       destination:
         namespace: monitoring
@@ -50,7 +50,7 @@ You will need to update the Prometheus Argo CD manifest to match your environmen
 
 ## Deploy the manifest
 
-1. To deploy the Prometheus Argo CD application, run the following command:
+1. To deploy the Prometheus ArgoCD application, run the following command:
 
     ```bash
     kubectl apply -f manifests/prometheus-subchart.yaml
@@ -58,7 +58,7 @@ You will need to update the Prometheus Argo CD manifest to match your environmen
 
 ## Verify Install
 
-You should now see a new Prometheus application in your Argo CD dashboard. Click on the Prometheus application and verify there are no errors.
+You should now see a new Prometheus application in your ArgoCD dashboard. Click on the Prometheus application and verify there are no errors.
 
 ## Next Steps
 

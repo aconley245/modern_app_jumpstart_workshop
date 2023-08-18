@@ -4,18 +4,18 @@ metadata:
   name: prometheus
   namespace: argocd
   finalizers:
-  - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argoproj.io
 spec:
   destination:
-    server: https://kubernetes.default.svc
+    server: {{ .Values.spec.destination.server }}
     namespace: monitoring
-  project: udf
+  project: {{ .Values.spec.project }}
   source:
     chart: prometheus
     helm:
-      values: |
-        pushgateway:
-          enabled: false
+      parameters:
+        - name: "pushgateway.enabled"
+          value: "false"
     repoURL: https://prometheus-community.github.io/helm-charts
     targetRevision: 15.10.2
   syncPolicy:
@@ -23,4 +23,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true
